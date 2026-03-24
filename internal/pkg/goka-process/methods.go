@@ -1,4 +1,4 @@
-package processors
+package goka_process
 
 import (
 	"context"
