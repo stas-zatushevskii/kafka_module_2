@@ -1,30 +1,61 @@
 package app
 
-import "github.com/lovoo/goka"
-
-type App struct{}
-
-var (
-	brokers = []string{"localhost:9092"}
-
-	topicMessages         goka.Stream = "messages"
-	topicFilteredMessages goka.Stream = "messages.filtered"
-	topicBlockedMessages  goka.Stream = "messages.blocked"
-	topicBlockedUsers     goka.Stream = "users.blocked"
-
-	messageFilterGroup goka.Group = "message-filter-group"
-	blockCommandGroup  goka.Group = "block-command-group"
+import (
+	"context"
+	"fmt"
+	"kafka_module_2/internal/app/constants"
+	"kafka_module_2/internal/app/domain"
+	"kafka_module_2/internal/app/processors"
+	process "kafka_module_2/internal/pkg/goka-process"
+	"kafka_module_2/internal/pkg/graceful"
+	codec "kafka_module_2/internal/pkg/json-codec"
 )
+
+type App struct {
+	blockCommandProcessor  *process.Processor
+	filterMessageProcessor *process.Processor
+}
 
 func New() (*App, error) {
 
-	// 1 create use cases
+	blockCommandProcessor, err := process.NewProcessorBuilder().
+		WithGroup(constants.BlockCommandGroup).
+		WithInput(constants.TopicBlockedMessages, codec.JsonCodec[domain.Command]{}, processors.BlockCommandProcessor).
+		WithInput(constants.TopicBlockedUsers, codec.JsonCodec[domain.Command]{}, processors.BlockCommandProcessor).
+		WithPersist(codec.JsonCodec[domain.UserFilters]{}).
+		Build()
 
-	// 2 create processors with default builder
+	if err != nil {
+		return nil, fmt.Errorf("create block command processor error: %w", err)
+	}
 
-	// 3 add use cases to processors
+	filterMessageProcessor, err := process.NewProcessorBuilder().
+		WithGroup(constants.MessageFilterGroup).
+		WithInput(constants.TopicMessages, codec.JsonCodec[domain.Message]{}, processors.MessageFilterProcessor).
+		WithOutput(constants.TopicFilteredMessages, codec.JsonCodec[domain.Message]{}).
+		Build()
 
-	// 4 run all process in graceful
+	if err != nil {
+		return nil, fmt.Errorf("create filter message processor error: %w", err)
+	}
 
-	return &App{}, nil
+	return &App{
+		blockCommandProcessor:  blockCommandProcessor,
+		filterMessageProcessor: filterMessageProcessor,
+	}, nil
+}
+
+// Start runs the application processes under a graceful shutdown supervisor.
+func (app *App) Start() error {
+	gr := graceful.New(
+		graceful.NewProcess(app.blockCommandProcessor),
+		graceful.NewProcess(app.filterMessageProcessor),
+	)
+
+	err := gr.Start(context.Background())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

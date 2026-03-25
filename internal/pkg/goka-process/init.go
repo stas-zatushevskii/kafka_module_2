@@ -38,8 +38,8 @@ func (b *ProcessorBuilder) WithPersist(codec Codec) *ProcessorBuilder {
 	return b
 }
 
-func (b *ProcessorBuilder) WithGroup(groupName string) *ProcessorBuilder {
-	b.groupName = goka.Group(groupName)
+func (b *ProcessorBuilder) WithGroup(groupName goka.Group) *ProcessorBuilder {
+	b.groupName = groupName
 	return b
 }
 
