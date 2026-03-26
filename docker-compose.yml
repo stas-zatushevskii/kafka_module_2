@@ -39,32 +39,29 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
-  kafka-init:
+  kafka-init-topics:
     image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka-init-topics
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
     entrypoint: ["/bin/sh", "-c"]
     command: >
       "
       cub kafka-ready -b kafka:9092 1 30 &&
-      kafka-topics --create --if-not-exists
-      --topic test-topic
-      --bootstrap-server kafka:9092
-      --partitions 4
-      --replication-factor 1
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic messages &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic messages.filtered &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic messages.blocked &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic users.blocked
       "
 
   ksqldb-server:
     image: confluentinc/ksqldb-server:latest
     depends_on:
-      - kafka-init
+      - kafka-init-topics
     environment:
       KSQL_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8088:8088"
-    networks:
-      - kafka-network
 
   ksqldb-cli:
     image: confluentinc/ksqldb-cli:latest
@@ -73,22 +70,13 @@ services:
     entrypoint: /bin/sh -c 'exec ksql http://ksqldb-server:8088'
     stdin_open: true
     tty: true
-    networks:
-      - kafka-network
 
   application:
     depends_on:
-      kafka-init:
+      kafka-init-topics:
         condition: service_completed_successfully
-      schema-registry:
-        condition: service_healthy
     build:
       context: .
       dockerfile: ./Dockerfile
-    env_file:
-      - ./.env
-    deploy:
-      replicas: 2
-#    environment:
-#      todo
+
 

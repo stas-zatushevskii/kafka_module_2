@@ -9,6 +9,8 @@ import (
 	process "kafka_module_2/internal/pkg/goka-process"
 	"kafka_module_2/internal/pkg/graceful"
 	codec "kafka_module_2/internal/pkg/json-codec"
+
+	"github.com/lovoo/goka"
 )
 
 type App struct {
@@ -23,6 +25,7 @@ func New() (*App, error) {
 		WithInput(constants.TopicBlockedMessages, codec.JsonCodec[domain.Command]{}, processors.BlockCommandProcessor).
 		WithInput(constants.TopicBlockedUsers, codec.JsonCodec[domain.Command]{}, processors.BlockCommandProcessor).
 		WithPersist(codec.JsonCodec[domain.UserFilters]{}).
+		WithBrokers(constants.Brokers...).
 		Build()
 
 	if err != nil {
@@ -33,6 +36,8 @@ func New() (*App, error) {
 		WithGroup(constants.MessageFilterGroup).
 		WithInput(constants.TopicMessages, codec.JsonCodec[domain.Message]{}, processors.MessageFilterProcessor).
 		WithOutput(constants.TopicFilteredMessages, codec.JsonCodec[domain.Message]{}).
+		WithBrokers(constants.Brokers...).
+		WithLookup(goka.GroupTable(constants.BlockCommandGroup), codec.JsonCodec[domain.UserFilters]{}).
 		Build()
 
 	if err != nil {

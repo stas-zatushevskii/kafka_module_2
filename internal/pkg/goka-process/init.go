@@ -43,6 +43,11 @@ func (b *ProcessorBuilder) WithGroup(groupName goka.Group) *ProcessorBuilder {
 	return b
 }
 
+func (b *ProcessorBuilder) WithLookup(table goka.Table, codec Codec) *ProcessorBuilder {
+	b.edges = append(b.edges, goka.Lookup(table, codec))
+	return b
+}
+
 func (b *ProcessorBuilder) WithBrokers(brokers ...string) *ProcessorBuilder {
 	b.brokers = append(b.brokers, brokers...)
 	return b
@@ -63,7 +68,19 @@ func (b *ProcessorBuilder) Build() (*Processor, error) {
 	g := goka.DefineGroup(b.groupName, b.edges...)
 
 	// create new process
-	p, err := goka.NewProcessor(b.brokers, g)
+	tmConfig := goka.NewTopicManagerConfig()
+
+	// fixme: only for local tests
+	tmConfig.Table.Replication = 1
+	tmConfig.Stream.Replication = 1
+
+	p, err := goka.NewProcessor(
+		b.brokers,
+		g,
+		goka.WithTopicManagerBuilder(
+			goka.TopicManagerBuilderWithTopicManagerConfig(tmConfig),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
