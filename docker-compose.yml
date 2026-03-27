@@ -1,0 +1,82 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.0.1
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_SCHEMA_REGISTRY_URL: "schema-registry:8081"
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "cub kafka-ready -b localhost:9092 1 30"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka-init-topics
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      cub kafka-ready -b kafka:9092 1 30 &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic messages &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic messages.filtered &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic messages.blocked &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic users.blocked
+      "
+
+  ksqldb-server:
+    image: confluentinc/ksqldb-server:latest
+    depends_on:
+      - kafka-init-topics
+    environment:
+      KSQL_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8088:8088"
+
+  ksqldb-cli:
+    image: confluentinc/ksqldb-cli:latest
+    depends_on:
+      - ksqldb-server
+    entrypoint: /bin/sh -c 'exec ksql http://ksqldb-server:8088'
+    stdin_open: true
+    tty: true
+
+  application:
+    depends_on:
+      kafka-init-topics:
+        condition: service_completed_successfully
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    env_file:
+      - ./.env
