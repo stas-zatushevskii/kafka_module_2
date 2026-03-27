@@ -48,7 +48,7 @@ func (b *ProcessorBuilder) WithLookup(table goka.Table, codec Codec) *ProcessorB
 	return b
 }
 
-func (b *ProcessorBuilder) WithBrokers(brokers ...string) *ProcessorBuilder {
+func (b *ProcessorBuilder) WithBrokers(brokers []string) *ProcessorBuilder {
 	b.brokers = append(b.brokers, brokers...)
 	return b
 }

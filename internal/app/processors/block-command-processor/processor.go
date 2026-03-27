@@ -1,4 +1,4 @@
-package processors
+package block_command_processor
 
 import (
 	"kafka_module_2/internal/app/domain"
@@ -29,18 +29,12 @@ func BlockCommandProcessor(ctx goka.Context, msg interface{}) {
 	}
 
 	// update filters according command type
-	log.Printf("processing block command: %v", command)
-	log.Println("...")
 
 	switch {
 	case command.BlockUsers != nil:
 		filters.BlockedUserIDs = append(filters.BlockedUserIDs, command.BlockUsers.BlockUserIDs...)
-		log.Printf("blocked users: %v", filters.BlockedUserIDs)
-		log.Printf("[BlockCommandProcessor] User Filters: %+v]", filters)
 	case command.BlockWords != nil:
 		filters.BlockedWords = append(filters.BlockedWords, command.BlockWords.BlockWords...)
-		log.Printf("blocked wors: %v", filters.BlockedUserIDs)
-		log.Printf("[BlockCommandProcessor] User Filters: %+v]", filters)
 	}
 
 	// set updated filters

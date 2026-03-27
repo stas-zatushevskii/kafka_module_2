@@ -3,14 +3,10 @@ package app
 import (
 	"context"
 	"fmt"
-	"kafka_module_2/internal/app/constants"
-	"kafka_module_2/internal/app/domain"
-	"kafka_module_2/internal/app/processors"
+	blockCommandProcessor "kafka_module_2/internal/app/processors/block-command-processor"
+	messageFilterProcessor "kafka_module_2/internal/app/processors/message-filter-processor"
 	process "kafka_module_2/internal/pkg/goka-process"
 	"kafka_module_2/internal/pkg/graceful"
-	codec "kafka_module_2/internal/pkg/json-codec"
-
-	"github.com/lovoo/goka"
 )
 
 type App struct {
@@ -20,33 +16,19 @@ type App struct {
 
 func New() (*App, error) {
 
-	blockCommandProcessor, err := process.NewProcessorBuilder().
-		WithGroup(constants.BlockCommandGroup).
-		WithInput(constants.TopicBlockedMessages, codec.JsonCodec[domain.Command]{}, processors.BlockCommandProcessor).
-		WithInput(constants.TopicBlockedUsers, codec.JsonCodec[domain.Command]{}, processors.BlockCommandProcessor).
-		WithPersist(codec.JsonCodec[domain.UserFilters]{}).
-		WithBrokers(constants.Brokers...).
-		Build()
-
+	BlockCommandProcessor, err := blockCommandProcessor.New()
 	if err != nil {
-		return nil, fmt.Errorf("create block command processor error: %w", err)
+		return nil, fmt.Errorf("error creating block command processor: %w", err)
 	}
 
-	filterMessageProcessor, err := process.NewProcessorBuilder().
-		WithGroup(constants.MessageFilterGroup).
-		WithInput(constants.TopicMessages, codec.JsonCodec[domain.Message]{}, processors.MessageFilterProcessor).
-		WithOutput(constants.TopicFilteredMessages, codec.JsonCodec[domain.Message]{}).
-		WithBrokers(constants.Brokers...).
-		WithLookup(goka.GroupTable(constants.BlockCommandGroup), codec.JsonCodec[domain.UserFilters]{}).
-		Build()
-
+	MessageFilterProcessor, err := messageFilterProcessor.New()
 	if err != nil {
-		return nil, fmt.Errorf("create filter message processor error: %w", err)
+		return nil, fmt.Errorf("error creating message filter processor: %w", err)
 	}
 
 	return &App{
-		blockCommandProcessor:  blockCommandProcessor,
-		filterMessageProcessor: filterMessageProcessor,
+		blockCommandProcessor:  BlockCommandProcessor,
+		filterMessageProcessor: MessageFilterProcessor,
 	}, nil
 }
 

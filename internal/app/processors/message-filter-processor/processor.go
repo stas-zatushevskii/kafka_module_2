@@ -1,4 +1,4 @@
-package processors
+package message_filter_processor
 
 import (
 	"kafka_module_2/internal/app/constants"
