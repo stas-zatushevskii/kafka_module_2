@@ -1,19 +1,20 @@
 package block_command_processor
 
 import (
-	"kafka_module_2/internal/app/constants"
+	"kafka_module_2/internal/app/config"
 	"kafka_module_2/internal/app/domain"
 	builder "kafka_module_2/internal/pkg/goka-process"
 	process "kafka_module_2/internal/pkg/goka-process"
 	codec "kafka_module_2/internal/pkg/json-codec"
+	"log/slog"
 )
 
-func New() (*builder.Processor, error) {
+func New(config *config.Config, logger *slog.Logger) (*builder.Processor, error) {
 	return process.NewProcessorBuilder().
-		WithGroup(constants.BlockCommandGroup).
-		WithInput(constants.TopicBlockedMessages, codec.JsonCodec[domain.Command]{}, BlockCommandProcessor).
-		WithInput(constants.TopicBlockedUsers, codec.JsonCodec[domain.Command]{}, BlockCommandProcessor).
+		WithGroup(config.BlockCommandGroup()).
+		WithInput(config.TopicBlockedMessages(), codec.JsonCodec[domain.Command]{}, BlockCommandProcessor(logger)).
+		WithInput(config.TopicBlockedUsers(), codec.JsonCodec[domain.Command]{}, BlockCommandProcessor(logger)).
 		WithPersist(codec.JsonCodec[domain.UserFilters]{}).
-		WithBrokers(constants.Brokers).
+		WithBrokers(config.KafkaBrokers()).
 		Build()
 }

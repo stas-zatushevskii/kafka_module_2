@@ -3,6 +3,7 @@ module kafka_module_2
 go 1.26.1
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/lovoo/goka v1.1.16
 	golang.org/x/sync v0.20.0
 )

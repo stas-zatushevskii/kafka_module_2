@@ -2,20 +2,22 @@ package main
 
 import (
 	"kafka_module_2/internal/app"
-	"log"
+	l "kafka_module_2/internal/pkg/logger"
 )
 
 func main() {
 
-	application, err := app.New()
+	logger := l.New()
+
+	application, err := app.New(logger)
 	if err != nil {
-		log.Fatal("Failed to create Application: ", err)
+		logger.Error("Failed to create Application: %s", err)
 		return
 	}
 
 	err = application.Start()
 	if err != nil {
-		log.Fatal("Failed to start Application: ", err)
+		logger.Error("Failed to start Application: %s", err)
 		return
 	}
 }

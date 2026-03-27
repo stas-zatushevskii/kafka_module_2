@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	c "kafka_module_2/internal/app/config"
 	blockCommandProcessor "kafka_module_2/internal/app/processors/block-command-processor"
 	messageFilterProcessor "kafka_module_2/internal/app/processors/message-filter-processor"
 	process "kafka_module_2/internal/pkg/goka-process"
 	"kafka_module_2/internal/pkg/graceful"
+	"log/slog"
 )
 
 type App struct {
@@ -14,14 +16,25 @@ type App struct {
 	filterMessageProcessor *process.Processor
 }
 
-func New() (*App, error) {
+// New initializes the application by loading configuration,
+// creating OS signal, Goka processors,
+// and returning the assembled App instance.
+func New(logger *slog.Logger) (*App, error) {
 
-	BlockCommandProcessor, err := blockCommandProcessor.New()
+	// load config
+	config, err := c.Load()
+	if err != nil {
+		return nil, fmt.Errorf("error loading config: %w", err)
+	}
+
+	// create block-command processor
+	BlockCommandProcessor, err := blockCommandProcessor.New(config, logger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating block command processor: %w", err)
 	}
 
-	MessageFilterProcessor, err := messageFilterProcessor.New()
+	// create message-filter processor
+	MessageFilterProcessor, err := messageFilterProcessor.New(config, logger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating message filter processor: %w", err)
 	}
